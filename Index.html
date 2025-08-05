@@ -1,0 +1,80 @@
+<?xml version='1.0' encoding='utf-8'?>
+<widget id="com.tuaazienda.gestionalepneumatici" version="1.0.0" 
+        xmlns="http://www.w3.org/ns/widgets" 
+        xmlns:cdv="http://cordova.apache.org/ns/1.0">
+    
+    <name>Gestionale Pneumatici</name>
+    
+    <description>
+        Sistema di gestione inventario pneumatici con sincronizzazione cloud
+    </description>
+    
+    <author email="tua@email.com" href="https://tuosito.com">
+        Il Tuo Nome
+    </author>
+    
+    <content src="index.html" />
+    
+    <access origin="*" />
+    
+    <allow-intent href="http://*/*" />
+    <allow-intent href="https://*/*" />
+    <allow-intent href="tel:*" />
+    <allow-intent href="sms:*" />
+    <allow-intent href="mailto:*" />
+    <allow-intent href="geo:*" />
+    
+    <platform name="ios">
+        <allow-intent href="itms:*" />
+        <allow-intent href="itms-apps:*" />
+        
+        <!-- iOS 8.0+ -->
+        <preference name="WKWebViewOnly" value="true" />
+        <feature name="CDVWKWebViewEngine">
+            <param name="ios-package" value="CDVWKWebViewEngine" />
+        </feature>
+        <preference name="CordovaWebViewEngine" value="CDVWKWebViewEngine" />
+        
+        <!-- Icone -->
+        <icon src="res/ios/icon-57.png" width="57" height="57" />
+        <icon src="res/ios/icon-114.png" width="114" height="114" />
+        <icon src="res/ios/icon-72.png" width="72" height="72" />
+        <icon src="res/ios/icon-144.png" width="144" height="144" />
+        
+        <!-- Splash Screen -->
+        <splash src="res/ios/Default.png" width="320" height="480" />
+        <splash src="res/ios/Default@2x.png" width="640" height="960" />
+        
+        <!-- Permessi -->
+        <config-file target="*-Info.plist" parent="NSCameraUsageDescription">
+            <string>L'app ha bisogno della fotocamera per scansionare codici pneumatici</string>
+        </config-file>
+        
+        <config-file target="*-Info.plist" parent="NSLocationWhenInUseUsageDescription">
+            <string>L'app può usare la posizione per identificare il magazzino</string>
+        </config-file>
+    </platform>
+    
+    <!-- Plugin necessari -->
+    <plugin name="cordova-plugin-whitelist" spec="^1.3.4" />
+    <plugin name="cordova-plugin-file" spec="^6.0.2" />
+    <plugin name="cordova-plugin-device" spec="^2.0.3" />
+    <plugin name="cordova-plugin-network-information" spec="^2.0.2" />
+    <plugin name="cordova-plugin-statusbar" spec="^2.4.3" />
+    <plugin name="cordova-plugin-splashscreen" spec="^5.0.4" />
+    
+    <!-- Configurazioni -->
+    <preference name="orientation" value="portrait" />
+    <preference name="target-device" value="universal" />
+    <preference name="fullscreen" value="false" />
+    <preference name="webviewbounce" value="false" />
+    <preference name="prerendered-icon" value="true" />
+    <preference name="stay-in-webview" value="false" />
+    <preference name="detect-data-types" value="true" />
+    <preference name="exit-on-suspend" value="false" />
+    <preference name="show-splash-screen-spinner" value="true" />
+    <preference name="auto-hide-splash-screen" value="true" />
+    <preference name="disable-cursor" value="false" />
+    <preference name="android-minSdkVersion" value="19" />
+    <preference name="android-installLocation" value="auto" />
+</widget>
