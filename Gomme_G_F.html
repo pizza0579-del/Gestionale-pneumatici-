@@ -1,0 +1,1820 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Gestionale Pneumatici</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Google Sheets API -->
+    <script src="https://apis.google.com/js/api.js"></script>
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getDatabase, ref, set, get, push, onValue, off, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js';
+        import { getAnalytics } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUTX6YYdyrMPwZZf4CGHSGsUNUZ2Ybcmw",
+            authDomain: "magazzino-gomme.firebaseapp.com",
+            databaseURL: "https://magazzino-gomme-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "magazzino-gomme",
+            storageBucket: "magazzino-gomme.firebasestorage.app",
+            messagingSenderId: "462445900115",
+            appId: "1:462445900115:web:6457378318558b3cd471a6",
+            measurementId: "G-7TW5NGTB52"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+        const analytics = getAnalytics(app);
+
+        // Make Firebase functions globally available
+        window.firebaseDB = {
+            database,
+            ref,
+            set,
+            get,
+            push,
+            onValue,
+            off,
+            serverTimestamp
+        };
+
+        // Initialize the app once Firebase is ready
+        window.initFirebaseApp();
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .sync-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #ecf0f1;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #e74c3c;
+            animation: pulse 2s infinite;
+        }
+        .status-dot.connected {
+            background: #27ae60;
+            animation: none;
+        }
+        .status-dot.syncing {
+            background: #f39c12;
+            animation: pulse 0.5s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .google-sheets-section {
+            background: #e8f5e8;
+            border: 2px solid #27ae60;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .google-sheets-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .sheets-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #e74c3c;
+        }
+        
+        .sheets-indicator.connected {
+            background: #27ae60;
+        }
+        
+        .btn-sheets {
+            background: #0f9d58;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .sheets-config {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border-left: 4px solid #0f9d58;
+        }
+        
+        .config-step {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            border-left: 3px solid #3498db;
+        }
+        
+        .step-number {
+            background: #3498db;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: #3498db;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            flex: 1;
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+        }
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .form-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            flex: 1;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-add { background: #27ae60; color: white; }
+        .btn-remove { background: #e74c3c; color: white; }
+        .btn-backup { background: #8e44ad; color: white; }
+        .btn-pdf { background: #e67e22; color: white; }
+        .btn-sync { background: #3498db; color: white; }
+        
+        /* Brand logo styles */
+        .brand-logo {
+            width: 40px;
+            height: 30px;
+            object-fit: contain;
+            vertical-align: middle;
+            margin-right: 10px;
+            border-radius: 4px;
+            background: white;
+            padding: 2px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .brand-select-option {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .brand-name-with-logo {
+            display: flex;
+            align-items: center;
+            font-weight: 500;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background: #3498db;
+            color: white;
+        }
+        .low-stock {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .good-stock {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+        .alert {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #27ae60;
+        }
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #e74c3c;
+        }
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #3498db;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 10px;
+            width: 300px;
+            animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .close:hover {
+            color: black;
+        }
+        .firebase-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9em;
+        }
+        .loading-spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Brand logos grid */
+        .brand-logos-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .brand-logos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .brand-logo-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+        
+        .brand-logo-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+        }
+        
+        .brand-logo-large {
+            width: 35px;
+            height: 25px;
+            object-fit: contain;
+            margin-right: 8px;
+        }
+        
+        .brand-name {
+            font-size: 12px;
+            font-weight: 500;
+            color: #2c3e50;
+        }
+        
+        @media (max-width: 768px) {
+            .stats, .controls {
+                flex-direction: column;
+            }
+            .brand-logos-grid {
+                grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚗 Gestionale Pneumatici Cloud</h1>
+            <p>Sistema di inventario sincronizzato in tempo reale</p>
+        </div>
+        
+        <!-- Sezione Google Sheets -->
+        <div class="google-sheets-section">
+            <h3>📊 Collaborazione Google Sheets</h3>
+            <div class="google-sheets-status">
+                <div class="sheets-indicator" id="sheetsIndicator"></div>
+                <span id="sheetsStatusText">Non connesso a Google Sheets</span>
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn-sheets" onclick="initGoogleSheets()" id="connectSheetsBtn">
+                    📊 Connetti Google Sheets
+                </button>
+                <button class="btn-sheets" onclick="syncToSheets()" id="syncToSheetsBtn" disabled>
+                    ⬆️ Sincronizza verso Sheets
+                </button>
+                <button class="btn-sheets" onclick="syncFromSheets()" id="syncFromSheetsBtn" disabled>
+                    ⬇️ Importa da Sheets
+                </button>
+                <button class="btn-sheets" onclick="createNewSheet()" id="createSheetBtn" disabled>
+                    ➕ Crea Nuovo Foglio
+                </button>
+                <button onclick="toggleSheetsConfig()" style="background: #95a5a6; color: white;">
+                    ⚙️ Configurazione
+                </button>
+            </div>
+            
+            <!-- Configurazione Google Sheets -->
+            <div class="sheets-config" id="sheetsConfig" style="display: none;">
+                <h4>⚙️ Configurazione Google Sheets</h4>
+                
+                <div class="config-step">
+                    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                        <span class="step-number">1</span>
+                        <strong>Crea un progetto Google Cloud</strong>
+                    </div>
+                    <p style="margin: 5px 0; font-size: 14px;">
+                        Vai su <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a> 
+                        e crea un nuovo progetto o seleziona quello esistente.
+                    </p>
+                </div>
+                
+                <div class="config-step">
+                    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                        <span class="step-number">2</span>
+                        <strong>Attiva le API necessarie</strong>
+                    </div>
+                    <p style="margin: 5px 0; font-size: 14px;">
+                        Attiva "Google Sheets API" e "Google Drive API" nella sezione API & Services.
+                    </p>
+                </div>
+                
+                <div class="config-step">
+                    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                        <span class="step-number">3</span>
+                        <strong>Inserisci API Key</strong>
+                    </div>
+                    <div class="form-group" style="margin-top: 10px;">
+                        <label>Google API Key:</label>
+                        <input type="password" id="googleApiKey" placeholder="Inserisci la tua API Key di Google">
+                        <button onclick="saveGoogleConfig()" style="background: #0f9d58; color: white; margin-top: 5px;">Salva Configurazione</button>
+                    </div>
+                </div>
+                
+                <div class="config-step">
+                    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                        <span class="step-number">4</span>
+                        <strong>ID Foglio Google Sheets</strong>
+                    </div>
+                    <div class="form-group" style="margin-top: 10px;">
+                        <label>Sheet ID (opzionale - lascia vuoto per creare nuovo):</label>
+                        <input type="text" id="googleSheetId" placeholder="es. 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms">
+                        <small style="color: #666; font-size: 12px;">
+                            Puoi trovare l'ID nell'URL del tuo foglio Google Sheets
+                        </small>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="sheetsInfo" style="margin-top: 10px; padding: 10px; background: #d1ecf1; border-radius: 5px; display: none;">
+                <strong>📋 Foglio Collegato:</strong>
+                <div id="sheetDetails" style="margin-top: 5px;"></div>
+                <a id="sheetLink" href="#" target="_blank" style="color: #0f9d58; text-decoration: none;">
+                    🔗 Apri in Google Sheets
+                </a>
+            </div>
+        </div>
+        
+        <!-- Sezione loghi marche -->
+        <div class="brand-logos-section">
+            <h3>🏷️ Marche Disponibili</h3>
+            <div class="brand-logos-grid" id="brandLogosGrid">
+                <!-- Loghi inseriti dinamicamente -->
+            </div>
+        </div>
+        
+        <div class="sync-status">
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Inizializzazione...</span>
+                <div class="firebase-status">
+                    <span id="firebaseStatus">🔄 Connessione Firebase...</span>
+                    <div id="loadingSpinner" class="loading-spinner" style="display: none;"></div>
+                </div>
+            </div>
+            <div>
+                <button class="btn-sync" onclick="manualSync()" id="syncBtn" style="width: auto; padding: 8px 16px;" disabled>Sincronizza</button>
+                <button onclick="showUserModal()" style="background: #95a5a6; color: white; width: auto; padding: 8px 16px;">Utente: <span id="currentUser">Guest</span></button>
+            </div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="totalItems">0</div>
+                <div>Articoli Totali</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalQuantity">0</div>
+                <div>Pezzi Magazzino</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="lowStockItems">0</div>
+                <div>Scorte Basse</div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <div class="form-section">
+                <h3>➕ Aggiungi Pneumatico</h3>
+                <div class="form-group">
+                    <label>Marca:</label>
+                    <select id="addMarca">
+                        <option value="">Seleziona Marca</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Stagione:</label>
+                    <select id="addStagione">
+                        <option value="">Seleziona Stagione</option>
+                        <option value="Estive">🌞 Estive</option>
+                        <option value="Invernali">❄️ Invernali</option>
+                        <option value="4 Stagioni">🔄 4 Stagioni</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tipo/Dimensioni:</label>
+                    <input type="text" id="addTipo" placeholder="es. 185/65/15 88H">
+                </div>
+                <div class="form-group">
+                    <label>Quantità:</label>
+                    <input type="number" id="addQuantita" min="1" placeholder="es. 4">
+                </div>
+                <button class="btn-add" onclick="addTire()" id="addBtn">Aggiungi</button>
+                
+                <h4>🏷️ Nuova Marca</h4>
+                <div class="form-group">
+                    <input type="text" id="newBrand" placeholder="es. Continental">
+                </div>
+                <button onclick="addBrand()" style="background: #f39c12; color: white;">Aggiungi Marca</button>
+            </div>
+            
+            <div class="form-section">
+                <h3>➖ Rimuovi/Modifica</h3>
+                <div class="form-group">
+                    <label>Seleziona Pneumatico:</label>
+                    <select id="selectTire">
+                        <option value="">Seleziona</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Quantità da rimuovere:</label>
+                    <input type="number" id="removeQuantita" min="1" placeholder="es. 2">
+                </div>
+                <button class="btn-remove" onclick="removeTire()" id="removeBtn">Rimuovi</button>
+                
+                <h4>📊 Export/Import</h4>
+                <button class="btn-pdf" onclick="exportPDF()">📄 Esporta PDF</button>
+                <button class="btn-backup" onclick="exportData()">💾 Esporta JSON</button>
+                <button class="btn-backup" onclick="exportExcel()">📊 Esporta CSV</button>
+                <button onclick="importFile()" style="background: #f39c12; color: white;">📂 Importa Database</button>
+                <input type="file" id="fileInput" accept=".json" style="display: none;">
+            </div>
+        </div>
+        
+        <div>
+            <h3>📋 Inventario Pneumatici</h3>
+            <input type="text" id="searchInput" placeholder="🔍 Cerca..." onkeyup="filterTable()" style="margin-bottom: 10px;">
+            <table id="inventoryTable">
+                <thead>
+                    <tr>
+                        <th>Marca</th>
+                        <th>Stagione</th>
+                        <th>Tipo/Dimensioni</th>
+                        <th>Quantità</th>
+                        <th>Stato</th>
+                        <th>Ultimo Aggiornamento</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        
+        <div id="alertContainer"></div>
+    </div>
+
+    <!-- Modal per utente -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeUserModal()">&times;</span>
+            <h3>👤 Seleziona Utente</h3>
+            <div class="form-group">
+                <label>Nome Utente:</label>
+                <input type="text" id="userName" placeholder="Inserisci nome">
+            </div>
+            <button onclick="setUser()" style="background: #3498db; color: white; width: 100%; padding: 10px;">Conferma</button>
+        </div>
+    </div>
+
+    <script>
+        // Variabili Google Sheets
+        var googleSheetsAPI = null;
+        var sheetsConnected = false;
+        var googleApiKey = '';
+        var googleSheetId = '';
+        var sheetsUpdateListener = null;
+
+        // Variabili globali
+        var currentUser = 'Guest';
+        var brands = ["Riken", "Falken", "Michelin", "Taurus", "Pirelli", "Sailun", "Continental", "Goodyear", "Bridgestone"];
+        var inventory = [];
+        var firebaseConnected = false;
+        var inventoryListener = null;
+        var brandsListener = null;
+
+        // Loghi delle marche (usando data URLs come placeholder)
+        var brandLogos = {
+            "Pirelli": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjQwIiB2aWV3Qm94PSIwIDAgMTAwIDQwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iNDAiIGZpbGw9IiNGRkQ3MDAiLz48dGV4dCB4PSI1MCIgeT0iMjQiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiNEQzE0M0MiIHRleHQtYW5jaG9yPSJtaWRkbGUiPktJUkVMTEk8L3RleHQ+PC9zdmc+",
+            "Goodyear": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjQwIiB2aWV3Qm94PSIwIDAgMTAwIDQwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iNDAiIGZpbGw9IndoaXRlIi8+PHRleHQgeD0iNTAiIHk9IjI0IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTAiIGZvbnQtd2VpZ2h0PSJib2xkIiBmaWxsPSIjMzQ5OGRiIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5HT09EWUVBUjwvdGV4dD48L3N2Zz4=",
+            "Continental": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjQwIiB2aWV3Qm94PSIwIDAgMTAwIDQwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iNDAiIGZpbGw9IiNGRkE1MDAiLz48dGV4dCB4PSI1MCIgeT0iMTYiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSI4IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0iYmxhY2siIHRleHQtYW5jaG9yPSJtaWRkbGUiPkNvbnRpbmVudGFsPC90ZXh0Pjx0ZXh0IHg9IjUwIiB5PSIzMCIgZm9udC1GYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjYiIGZpbGw9ImJsYWNrIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5UaGUgRnV0dXJlIGluIE1vdGlvbjwvdGV4dD48L3N2Zz4=",
+            "Michelin": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjQwIiB2aWV3Qm94PSIwIDAgMTAwIDQwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iNDAiIGZpbGw9IiMzNDk4ZGIiLz48dGV4dCB4PSI1MCIgeT0iMjQiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5NSUNIRUxJTjwvdGV4dD48L3N2Zz4=",
+            "Taurus": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjQwIiB2aWV3Qm94PSIwIDAgMTAwIDQwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iNDAiIGZpbGw9IndoaXRlIi8+PGNpcmNsZSBjeD0iMTUiIGN5PSIyMCIgcj0iOCIgZmlsbD0iYmxhY2siLz48dGV4dCB4PSI0NSIgeT0iMjQiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiM5QjJGQTEiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlRBVVJVUzwvdGV4dD48L3N2Zz4=",
+            "Falken": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjQwIiB2aWV3Qm94PSIwIDAgMTAwIDQwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iNDAiIGZpbGw9IndoaXRlIi8+PHBvbHlnb24gcG9pbnRzPSIxMCwyMCAyMCwxMCAzMCwyMCAyMCwzMCIgZmlsbD0iI0RDMTQzQyIvPjx0ZXh0IHg9IjY1IiB5PSIyNCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0iIzM0OThkYiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+RkFMS0VOPC90ZXh0Pjx0ZXh0IHg9IjY1IiB5PSIzNCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjYiIGZpbGw9IiMzNDk4ZGIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlRJUkU8L3RleHQ+PC9zdmc+",
+            "Bridgestone": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjQwIiB2aWV3Qm94PSIwIDAgMTAwIDQwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iNDAiIGZpbGw9IndoaXRlIi8+PHBhdGggZD0iTTEwIDIwIEwyMCAxMCBMMzAgMjAgTDIwIDMwIFoiIGZpbGw9IiNEQzE0M0MiLz48cGF0aCBkPSJNMTUgMjAgTDI1IDEwIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiLz48dGV4dCB4PSI2NSIgeT0iMTgiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSI4IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0iYmxhY2siIHRleHQtYW5jaG9yPSJtaWRkbGUiPkJSSURHRVNUT05FPC90ZXh0Pjwvc3ZnPg==",
+            "Riken": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjQwIiB2aWV3Qm94PSIwIDAgMTAwIDQwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iNDAiIGZpbGw9IndoaXRlIi8+PHBhdGggZD0iTTEwIDEwIEwyMCA1IEwzMCAxMCBMMjAgMTUgWiIgZmlsbD0iI0RDMTQzQyIvPjx0ZXh0IHg9IjY1IiB5PSIyNCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0iYmxhY2siIHRleHQtYW5jaG9yPSJtaWRkbGUiPlJJS0VOPC90ZXh0Pjwvc3ZnPg==",
+            "Sailun": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjQwIiB2aWV3Qm94PSIwIDAgMTAwIDQwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iNDAiIGZpbGw9IndoaXRlIi8+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJzYWlsdW5HcmFkIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3R5bGU9InN0b3AtY29sb3I6I0ZGQzEwNzsiLz48c3RvcCBvZmZzZXQ9IjUwJSIgc3R5bGU9InN0b3AtY29sb3I6I0YzOUMxMjsiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiNFNjc0MTA7Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PGVsbGlwc2UgY3g9IjE4IiBjeT0iMjAiIHJ4PSIxMiIgcnk9IjE1IiBmaWxsPSJ1cmwoI3NhaWx1bkdyYWQpIi8+PHBhdGggZD0iTTEyIDEyIEwyNCAyOCBNMjQgMTIgTDEyIDI4IiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iMiIvPjx0ZXh0IHg9IjU4IiB5PSIxOCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0iIzM0OThkYiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+U0FJTE9OPC90ZXh0Pjx0ZXh0IHg9IjU4IiB5PSIzMSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjgiIGZpbGw9IiMzNDk4ZGIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkVOVklST05NRU5UPC90ZXh0Pjwvc3ZnPg=="
+        };
+
+        // Dati iniziali di default
+        var defaultInventory = [
+            { marca: "Riken", stagione: "Estive", tipo: "165/65/14 79T", quantita: 4, lastUpdate: new Date().toLocaleString(), user: "Sistema" },
+            { marca: "Michelin", stagione: "Estive", tipo: "185/55/15 82H", quantita: 3, lastUpdate: new Date().toLocaleString(), user: "Sistema" },
+            { marca: "Pirelli", stagione: "Estive", tipo: "185/60/15 84H", quantita: 4, lastUpdate: new Date().toLocaleString(), user: "Sistema" },
+            { marca: "Riken", stagione: "Estive", tipo: "185/65/15 88H", quantita: 13, lastUpdate: new Date().toLocaleString(), user: "Sistema" },
+            { marca: "Falken", stagione: "Estive", tipo: "195/55/16 91V", quantita: 9, lastUpdate: new Date().toLocaleString(), user: "Sistema" },
+            { marca: "Taurus", stagione: "Estive", tipo: "195/75/16", quantita: 6, lastUpdate: new Date().toLocaleString(), user: "Sistema" },
+            { marca: "Michelin", stagione: "Estive", tipo: "205/55/16 91V", quantita: 7, lastUpdate: new Date().toLocaleString(), user: "Sistema" },
+            { marca: "Pirelli", stagione: "Estive", tipo: "205/65/16 C", quantita: 2, lastUpdate: new Date().toLocaleString(), user: "Sistema" },
+            { marca: "Sailun", stagione: "Estive", tipo: "215/65/16C", quantita: 21, lastUpdate: new Date().toLocaleString(), user: "Sistema" },
+            { marca: "Riken", stagione: "Estive", tipo: "215/70/15", quantita: 3, lastUpdate: new Date().toLocaleString(), user: "Sistema" }
+        ];
+
+        // Inizializzazione Firebase (chiamata quando il modulo è caricato)
+        window.initFirebaseApp = function() {
+            if (!window.firebaseDB) {
+                setTimeout(window.initFirebaseApp, 100);
+                return;
+            }
+            
+            console.log('🔥 Inizializzazione Firebase...');
+            setupFirebaseListeners();
+            loadInitialData();
+        };
+
+        // Funzione per ottenere il logo della marca
+        function getBrandLogo(brandName) {
+            return brandLogos[brandName] || "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjQwIiB2aWV3Qm94PSIwIDAgMTAwIDQwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iNDAiIGZpbGw9IiNlY2YwZjEiIHN0cm9rZT0iI2JkYzNjNyIvPjx0ZXh0IHg9IjUwIiB5PSIyNCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEwIiBmaWxsPSIjNmM3NTdkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5MT0dPPC90ZXh0Pjwvc3ZnPg==";
+        }
+
+        // Aggiorna la griglia dei loghi delle marche
+        function updateBrandLogosGrid() {
+            var grid = document.getElementById('brandLogosGrid');
+            grid.innerHTML = '';
+            
+            brands.forEach(function(brand) {
+                var logoItem = document.createElement('div');
+                logoItem.className = 'brand-logo-item';
+                
+                var logo = document.createElement('img');
+                logo.className = 'brand-logo-large';
+                logo.src = getBrandLogo(brand);
+                logo.alt = brand;
+                logo.onerror = function() {
+                    this.src = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjQwIiB2aWV3Qm94PSIwIDAgMTAwIDQwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iNDAiIGZpbGw9IiNlY2YwZjEiIHN0cm9rZT0iI2JkYzNjNyIvPjx0ZXh0IHg9IjUwIiB5PSIyNCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEwIiBmaWxsPSIjNmM3NTdkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj4iICsgYnJhbmQgKyAiPC90ZXh0Pjwvc3ZnPg==";
+                };
+                
+                var name = document.createElement('span');
+                name.className = 'brand-name';
+                name.textContent = brand;
+                
+                logoItem.appendChild(logo);
+                logoItem.appendChild(name);
+                grid.appendChild(logoItem);
+            });
+        }
+
+        // Funzioni Google Sheets
+        
+        function toggleSheetsConfig() {
+            var config = document.getElementById('sheetsConfig');
+            config.style.display = config.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        function saveGoogleConfig() {
+            var apiKey = document.getElementById('googleApiKey').value.trim();
+            var sheetId = document.getElementById('googleSheetId').value.trim();
+            
+            if (!apiKey) {
+                showAlert('⚠️ Inserisci la API Key di Google!', 'error');
+                return;
+            }
+            
+            googleApiKey = apiKey;
+            googleSheetId = sheetId;
+            
+            // Salva in localStorage per persistenza
+            localStorage.setItem('googleApiKey', googleApiKey);
+            if (sheetId) {
+                localStorage.setItem('googleSheetId', googleSheetId);
+            }
+            
+            showAlert('✅ Configurazione Google salvata!', 'success');
+            document.getElementById('connectSheetsBtn').disabled = false;
+        }
+        
+        async function initGoogleSheets() {
+            if (!googleApiKey) {
+                showAlert('⚠️ Configura prima la API Key di Google!', 'error');
+                return;
+            }
+            
+            try {
+                updateSheetsStatus(false, '🔄 Connessione a Google Sheets...');
+                
+                // Carica Google Sheets API
+                await new Promise((resolve, reject) => {
+                    gapi.load('client', {
+                        callback: resolve,
+                        onerror: reject
+                    });
+                });
+                
+                await gapi.client.init({
+                    apiKey: googleApiKey,
+                    discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4']
+                });
+                
+                googleSheetsAPI = gapi.client.sheets;
+                sheetsConnected = true;
+                
+                updateSheetsStatus(true, '✅ Connesso a Google Sheets');
+                updateSheetsButtons(true);
+                
+                // Se non abbiamo un Sheet ID, chiedi se creare uno nuovo
+                if (!googleSheetId) {
+                    if (confirm('🆕 Vuoi creare un nuovo foglio Google Sheets per il magazzino pneumatici?')) {
+                        await createNewSheet();
+                    }
+                } else {
+                    await loadSheetInfo();
+                }
+                
+                showAlert('✅ Google Sheets connesso con successo!', 'success');
+                
+            } catch (error) {
+                console.error('❌ Errore connessione Google Sheets:', error);
+                updateSheetsStatus(false, '❌ Errore connessione');
+                showAlert('❌ Errore nella connessione a Google Sheets', 'error');
+            }
+        }
+        
+        async function createNewSheet() {
+            if (!sheetsConnected) {
+                showAlert('⚠️ Connetti prima a Google Sheets!', 'error');
+                return;
+            }
+            
+            try {
+                updateSheetsStatus(false, '🔄 Creazione nuovo foglio...');
+                
+                const createRequest = {
+                    properties: {
+                        title: `Magazzino Pneumatici - ${new Date().toLocaleDateString()}`,
+                        locale: 'it_IT',
+                        timeZone: 'Europe/Rome'
+                    },
+                    sheets: [{
+                        properties: {
+                            title: 'Inventario',
+                            gridProperties: {
+                                rowCount: 1000,
+                                columnCount: 10
+                            }
+                        }
+                    }]
+                };
+                
+                const response = await googleSheetsAPI.spreadsheets.create({
+                    resource: createRequest
+                });
+                
+                googleSheetId = response.result.spreadsheetId;
+                localStorage.setItem('googleSheetId', googleSheetId);
+                document.getElementById('googleSheetId').value = googleSheetId;
+                
+                // Imposta le intestazioni
+                await setupSheetHeaders();
+                
+                // Sincronizza i dati attuali
+                await syncToSheets();
+                
+                await loadSheetInfo();
+                updateSheetsStatus(true, '✅ Nuovo foglio creato e configurato');
+                showAlert('🎉 Nuovo foglio Google Sheets creato e configurato!', 'success');
+                
+            } catch (error) {
+                console.error('❌ Errore creazione foglio:', error);
+                updateSheetsStatus(false, '❌ Errore creazione');
+                showAlert('❌ Errore nella creazione del foglio Google Sheets', 'error');
+            }
+        }
+        
+        async function setupSheetHeaders() {
+            const headerValues = [
+                ['Marca', 'Stagione', 'Tipo/Dimensioni', 'Quantità', 'Stato', 'Ultimo Aggiornamento', 'Utente', 'Timestamp', 'Note', 'Azione']
+            ];
+            
+            await googleSheetsAPI.spreadsheets.values.update({
+                spreadsheetId: googleSheetId,
+                range: 'Inventario!A1:J1',
+                valueInputOption: 'RAW',
+                resource: {
+                    values: headerValues
+                }
+            });
+            
+            // Formatta le intestazioni
+            await googleSheetsAPI.spreadsheets.batchUpdate({
+                spreadsheetId: googleSheetId,
+                resource: {
+                    requests: [{
+                        repeatCell: {
+                            range: {
+                                sheetId: 0,
+                                startRowIndex: 0,
+                                endRowIndex: 1,
+                                startColumnIndex: 0,
+                                endColumnIndex: 10
+                            },
+                            cell: {
+                                userEnteredFormat: {
+                                    backgroundColor: { red: 0.2, green: 0.6, blue: 0.86 },
+                                    textFormat: {
+                                        foregroundColor: { red: 1, green: 1, blue: 1 },
+                                        bold: true
+                                    }
+                                }
+                            },
+                            fields: 'userEnteredFormat(backgroundColor,textFormat)'
+                        }
+                    }]
+                }
+            });
+        }
+        
+        async function syncToSheets() {
+            if (!sheetsConnected || !googleSheetId) {
+                showAlert('⚠️ Connetti prima a Google Sheets!', 'error');
+                return;
+            }
+            
+            try {
+                updateSheetsStatus(false, '🔄 Sincronizzazione verso Sheets...');
+                
+                // Prepara i dati per Google Sheets
+                const sheetData = inventory.map(item => {
+                    const status = item.quantita <= 3 ? 'Basse' : item.quantita >= 10 ? 'Buone' : 'Normali';
+                    return [
+                        item.marca,
+                        item.stagione,
+                        item.tipo,
+                        item.quantita,
+                        status,
+                        item.lastUpdate || '',
+                        item.user || currentUser,
+                        new Date().toISOString(),
+                        '', // Note - vuoto per ora
+                        'SYNC' // Azione
+                    ];
+                });
+                
+                // Pulisci il foglio (tranne le intestazioni)
+                await googleSheetsAPI.spreadsheets.values.clear({
+                    spreadsheetId: googleSheetId,
+                    range: 'Inventario!A2:J'
+                });
+                
+                // Aggiungi i nuovi dati
+                if (sheetData.length > 0) {
+                    await googleSheetsAPI.spreadsheets.values.update({
+                        spreadsheetId: googleSheetId,
+                        range: `Inventario!A2:J${sheetData.length + 1}`,
+                        valueInputOption: 'RAW',
+                        resource: {
+                            values: sheetData
+                        }
+                    });
+                }
+                
+                updateSheetsStatus(true, '✅ Sincronizzato verso Sheets');
+                showAlert('⬆️ Dati sincronizzati verso Google Sheets!', 'success');
+                
+                // Avvia il monitoraggio delle modifiche
+                startSheetsMonitoring();
+                
+            } catch (error) {
+                console.error('❌ Errore sincronizzazione verso Sheets:', error);
+                updateSheetsStatus(false, '❌ Errore sync verso Sheets');
+                showAlert('❌ Errore nella sincronizzazione verso Google Sheets', 'error');
+            }
+        }
+        
+        async function syncFromSheets() {
+            if (!sheetsConnected || !googleSheetId) {
+                showAlert('⚠️ Connetti prima a Google Sheets!', 'error');
+                return;
+            }
+            
+            try {
+                updateSheetsStatus(false, '🔄 Importazione da Sheets...');
+                
+                const response = await googleSheetsAPI.spreadsheets.values.get({
+                    spreadsheetId: googleSheetId,
+                    range: 'Inventario!A2:J'
+                });
+                
+                const rows = response.result.values || [];
+                const importedInventory = [];
+                
+                rows.forEach(row => {
+                    if (row[0] && row[1] && row[2] && row[3]) { // Controlla campi obbligatori
+                        const action = row[9] || '';
+                        
+                        // Solo se non è marcato per eliminazione
+                        if (action !== 'DELETE') {
+                            importedInventory.push({
+                                marca: row[0],
+                                stagione: row[1],
+                                tipo: row[2],
+                                quantita: parseInt(row[3]) || 0,
+                                lastUpdate: row[5] || new Date().toLocaleString(),
+                                user: row[6] || 'Google Sheets',
+                                note: row[8] || ''
+                            });
+                        }
+                    }
+                });
+                
+                if (confirm(`🔄 Trovati ${importedInventory.length} articoli su Google Sheets. Vuoi sostituire l'inventario locale?`)) {
+                    inventory = importedInventory;
+                    updateTable();
+                    
+                    // Sincronizza anche con Firebase
+                    try {
+                        await syncToFirebase();
+                        showAlert('⬇️ Inventario importato da Google Sheets e sincronizzato!', 'success');
+                    } catch (error) {
+                        showAlert('⬇️ Inventario importato da Google Sheets (errore sync Firebase)', 'error');
+                    }
+                }
+                
+                updateSheetsStatus(true, '✅ Importazione completata');
+                
+            } catch (error) {
+                console.error('❌ Errore importazione da Sheets:', error);
+                updateSheetsStatus(false, '❌ Errore importazione');
+                showAlert('❌ Errore nell\'importazione da Google Sheets', 'error');
+            }
+        }
+        
+        async function loadSheetInfo() {
+            if (!googleSheetId) return;
+            
+            try {
+                const response = await googleSheetsAPI.spreadsheets.get({
+                    spreadsheetId: googleSheetId
+                });
+                
+                const spreadsheet = response.result;
+                const sheetUrl = spreadsheet.spreadsheetUrl;
+                
+                document.getElementById('sheetsInfo').style.display = 'block';
+                document.getElementById('sheetDetails').innerHTML = `
+                    <strong>Nome:</strong> ${spreadsheet.properties.title}<br>
+                    <strong>ID:</strong> ${googleSheetId}
+                `;
+                document.getElementById('sheetLink').href = sheetUrl;
+                
+            } catch (error) {
+                console.error('❌ Errore caricamento info foglio:', error);
+            }
+        }
+        
+        function startSheetsMonitoring() {
+            // Avvia un controllo periodico per le modifiche (ogni 30 secondi)
+            if (sheetsUpdateListener) {
+                clearInterval(sheetsUpdateListener);
+            }
+            
+            sheetsUpdateListener = setInterval(async () => {
+                if (sheetsConnected && googleSheetId) {
+                    try {
+                        await checkSheetsChanges();
+                    } catch (error) {
+                        console.error('❌ Errore monitoraggio Sheets:', error);
+                    }
+                }
+            }, 30000); // 30 secondi
+        }
+        
+        async function checkSheetsChanges() {
+            try {
+                const response = await googleSheetsAPI.spreadsheets.values.get({
+                    spreadsheetId: googleSheetId,
+                    range: 'Inventario!H2:J' // Timestamp e Azione
+                });
+                
+                const rows = response.result.values || [];
+                let hasChanges = false;
+                
+                // Controlla se ci sono righe con azioni pendenti
+                rows.forEach((row, index) => {
+                    const action = row[2] || '';
+                    if (action === 'ADD' || action === 'UPDATE' || action === 'DELETE') {
+                        hasChanges = true;
+                    }
+                });
+                
+                if (hasChanges) {
+                    updateSheetsStatus(false, '⚡ Modifiche rilevate');
+                    showAlert('⚡ Modifiche rilevate su Google Sheets - sincronizza per applicarle', 'info');
+                }
+                
+            } catch (error) {
+                console.error('❌ Errore controllo modifiche:', error);
+            }
+        }
+        
+        function updateSheetsStatus(connected, message) {
+            const indicator = document.getElementById('sheetsIndicator');
+            const statusText = document.getElementById('sheetsStatusText');
+            
+            indicator.className = connected ? 'sheets-indicator connected' : 'sheets-indicator';
+            statusText.textContent = message;
+        }
+        
+        function updateSheetsButtons(enabled) {
+            document.getElementById('syncToSheetsBtn').disabled = !enabled;
+            document.getElementById('syncFromSheetsBtn').disabled = !enabled;
+            document.getElementById('createSheetBtn').disabled = !enabled;
+        }
+
+        // Setup listeners Firebase
+        function setupFirebaseListeners() {
+            const { database, ref, onValue } = window.firebaseDB;
+            
+            try {
+                // Listener per l'inventario
+                const inventoryRef = ref(database, 'inventory');
+                inventoryListener = onValue(inventoryRef, (snapshot) => {
+                    try {
+                        const data = snapshot.val();
+                        if (data) {
+                            inventory = Object.values(data);
+                            console.log('📦 Inventario sincronizzato:', inventory.length, 'articoli');
+                        } else {
+                            console.log('📦 Nessun dato inventario trovato');
+                            inventory = [];
+                        }
+                        updateTable();
+                        updateFirebaseStatus(true, '✅ Sincronizzato');
+                    } catch (error) {
+                        console.error('❌ Errore nel processare i dati inventario:', error);
+                        updateFirebaseStatus(false, '❌ Errore dati');
+                    }
+                }, (error) => {
+                    console.error('❌ Errore listener inventario:', error);
+                    updateFirebaseStatus(false, '❌ Errore connessione');
+                });
+
+                // Listener per le marche
+                const brandsRef = ref(database, 'brands');
+                brandsListener = onValue(brandsRef, (snapshot) => {
+                    try {
+                        const data = snapshot.val();
+                        if (data) {
+                            brands = data;
+                            console.log('🏷️ Marche sincronizzate:', brands.length);
+                        }
+                        updateBrandSelect();
+                        updateBrandLogosGrid();
+                    } catch (error) {
+                        console.error('❌ Errore nel processare le marche:', error);
+                    }
+                });
+
+                console.log('👂 Listeners Firebase attivati');
+                
+            } catch (error) {
+                console.error('❌ Errore setup listeners:', error);
+                updateFirebaseStatus(false, '❌ Errore setup');
+            }
+        }
+
+        // Caricamento dati iniziali
+        async function loadInitialData() {
+            try {
+                const { database, ref, get } = window.firebaseDB;
+                
+                updateFirebaseStatus(false, '🔄 Caricamento...');
+                showLoadingSpinner(true);
+                
+                // Controlla se esistono già dati
+                const inventorySnapshot = await get(ref(database, 'inventory'));
+                const brandsSnapshot = await get(ref(database, 'brands'));
+                
+                if (!inventorySnapshot.exists()) {
+                    console.log('📦 Primo avvio - Caricamento dati di default');
+                    await syncToFirebase();
+                    showAlert('🎉 Sistema inizializzato con dati di default!', 'success');
+                } else {
+                    console.log('📦 Dati esistenti trovati');
+                }
+                
+                if (!brandsSnapshot.exists()) {
+                    await syncBrandsToFirebase();
+                }
+                
+                showLoadingSpinner(false);
+                updateSyncButtons(true);
+                
+            } catch (error) {
+                console.error('❌ Errore caricamento iniziale:', error);
+                updateFirebaseStatus(false, '❌ Errore inizializzazione');
+                showLoadingSpinner(false);
+                showAlert('❌ Errore nell\'inizializzazione Firebase', 'error');
+                
+                // Fallback ai dati locali
+                inventory = defaultInventory;
+                updateTable();
+                updateBrandSelect();
+                updateBrandLogosGrid();
+            }
+        }
+
+        // Sincronizzazione manuale
+        async function manualSync() {
+            try {
+                updateFirebaseStatus(false, '🔄 Sincronizzazione...');
+                showLoadingSpinner(true);
+                
+                await syncToFirebase();
+                await syncBrandsToFirebase();
+                
+                showLoadingSpinner(false);
+                showAlert('✅ Sincronizzazione completata!', 'success');
+                
+            } catch (error) {
+                console.error('❌ Errore sincronizzazione:', error);
+                showLoadingSpinner(false);
+                showAlert('❌ Errore durante la sincronizzazione', 'error');
+                updateFirebaseStatus(false, '❌ Sync fallito');
+            }
+        }
+
+        // Sincronizza inventario su Firebase
+        async function syncToFirebase() {
+            try {
+                const { database, ref, set } = window.firebaseDB;
+                
+                const inventoryData = {};
+                inventory.forEach((item, index) => {
+                    inventoryData[`item_${index}`] = {
+                        ...item,
+                        timestamp: Date.now()
+                    };
+                });
+                
+                await set(ref(database, 'inventory'), inventoryData);
+                console.log('✅ Inventario sincronizzato su Firebase');
+                
+            } catch (error) {
+                console.error('❌ Errore sync inventario:', error);
+                throw error;
+            }
+        }
+
+        // Sincronizza marche su Firebase
+        async function syncBrandsToFirebase() {
+            try {
+                const { database, ref, set } = window.firebaseDB;
+                await set(ref(database, 'brands'), brands);
+                console.log('✅ Marche sincronizzate su Firebase');
+                
+            } catch (error) {
+                console.error('❌ Errore sync marche:', error);
+                throw error;
+            }
+        }
+
+        // Aggiorna stato Firebase UI
+        function updateFirebaseStatus(connected, message) {
+            firebaseConnected = connected;
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            const firebaseStatus = document.getElementById('firebaseStatus');
+            
+            if (connected) {
+                statusDot.className = 'status-dot connected';
+                statusText.textContent = 'Connesso ☁️';
+            } else {
+                statusDot.className = 'status-dot';
+                statusText.textContent = 'Disconnesso';
+            }
+            
+            firebaseStatus.textContent = message;
+        }
+
+        // Mostra/nascondi spinner
+        function showLoadingSpinner(show) {
+            const spinner = document.getElementById('loadingSpinner');
+            spinner.style.display = show ? 'block' : 'none';
+        }
+
+        // Aggiorna pulsanti sync
+        function updateSyncButtons(enabled) {
+            const syncBtn = document.getElementById('syncBtn');
+            const addBtn = document.getElementById('addBtn');
+            const removeBtn = document.getElementById('removeBtn');
+            
+            syncBtn.disabled = !enabled;
+            addBtn.disabled = !enabled;
+            removeBtn.disabled = !enabled;
+        }
+
+        // Funzioni principali (modificate per Firebase)
+        async function addTire() {
+            var marca = document.getElementById('addMarca').value;
+            var stagione = document.getElementById('addStagione').value;
+            var tipo = document.getElementById('addTipo').value.trim();
+            var quantita = parseInt(document.getElementById('addQuantita').value);
+            
+            if (!marca || !stagione || !tipo || !quantita) {
+                showAlert('⚠️ Compila tutti i campi obbligatori!', 'error');
+                return;
+            }
+            
+            var found = false;
+            for (var i = 0; i < inventory.length; i++) {
+                if (inventory[i].marca === marca && 
+                    inventory[i].stagione === stagione && 
+                    inventory[i].tipo.toLowerCase() === tipo.toLowerCase()) {
+                    inventory[i].quantita += quantita;
+                    inventory[i].lastUpdate = new Date().toLocaleString();
+                    inventory[i].user = currentUser;
+                    found = true;
+                    break;
+                }
+            }
+            
+            if (!found) {
+                inventory.push({
+                    marca: marca, 
+                    stagione: stagione,
+                    tipo: tipo, 
+                    quantita: quantita,
+                    lastUpdate: new Date().toLocaleString(),
+                    user: currentUser
+                });
+            }
+            
+            // Reset form
+            document.getElementById('addMarca').value = '';
+            document.getElementById('addStagione').value = '';
+            document.getElementById('addTipo').value = '';
+            document.getElementById('addQuantita').value = '';
+            
+            try {
+                await syncToFirebase();
+                
+                // Sincronizza anche con Google Sheets se connesso
+                if (sheetsConnected && googleSheetId) {
+                    await syncToSheets();
+                }
+                
+                showAlert('✅ Pneumatico aggiunto e sincronizzato!', 'success');
+            } catch (error) {
+                showAlert('⚠️ Pneumatico aggiunto localmente - errore sincronizzazione', 'error');
+            }
+        }
+
+        async function removeTire() {
+            var selectedIndex = document.getElementById('selectTire').value;
+            var quantita = parseInt(document.getElementById('removeQuantita').value);
+            
+            if (selectedIndex === '' || !quantita) {
+                showAlert('⚠️ Seleziona pneumatico e quantità!', 'error');
+                return;
+            }
+            
+            var item = inventory[selectedIndex];
+            
+            if (quantita >= item.quantita) {
+                inventory.splice(selectedIndex, 1);
+                showAlert('✅ Pneumatico rimosso completamente!', 'success');
+            } else {
+                item.quantita -= quantita;
+                item.lastUpdate = new Date().toLocaleString();
+                item.user = currentUser;
+                showAlert('✅ Quantità rimossa!', 'success');
+            }
+            
+            document.getElementById('selectTire').value = '';
+            document.getElementById('removeQuantita').value = '';
+            
+            try {
+                await syncToFirebase();
+                
+                // Sincronizza anche con Google Sheets se connesso
+                if (sheetsConnected && googleSheetId) {
+                    await syncToSheets();
+                }
+            } catch (error) {
+                showAlert('⚠️ Modifiche locali - errore sincronizzazione', 'error');
+            }
+        }
+
+        async function addBrand() {
+            var newBrand = document.getElementById('newBrand').value.trim();
+            
+            if (!newBrand) {
+                showAlert('⚠️ Inserisci nome marca!', 'error');
+                return;
+            }
+            
+            for (var i = 0; i < brands.length; i++) {
+                if (brands[i].toLowerCase() === newBrand.toLowerCase()) {
+                    showAlert('⚠️ Marca già esistente!', 'error');
+                    return;
+                }
+            }
+            
+            brands.push(newBrand);
+            brands.sort();
+            updateBrandSelect();
+            updateBrandLogosGrid();
+            document.getElementById('newBrand').value = '';
+            
+            try {
+                await syncBrandsToFirebase();
+                showAlert('✅ Marca aggiunta e sincronizzata!', 'success');
+            } catch (error) {
+                showAlert('⚠️ Marca aggiunta localmente - errore sincronizzazione', 'error');
+            }
+        }
+
+        // Gestione utenti
+        function showUserModal() {
+            document.getElementById('userModal').style.display = 'block';
+            document.getElementById('userName').value = currentUser;
+        }
+
+        function closeUserModal() {
+            document.getElementById('userModal').style.display = 'none';
+        }
+
+        function setUser() {
+            var userName = document.getElementById('userName').value.trim();
+            if (userName) {
+                currentUser = userName;
+                document.getElementById('currentUser').textContent = currentUser;
+                closeUserModal();
+                showAlert('👤 Utente impostato: ' + currentUser, 'success');
+            }
+        }
+
+        // Funzioni di utilità
+        function updateTable() {
+            var tbody = document.querySelector('#inventoryTable tbody');
+            tbody.innerHTML = '';
+            
+            for (var i = 0; i < inventory.length; i++) {
+                var item = inventory[i];
+                var row = document.createElement('tr');
+                var status = '';
+                var className = '';
+                
+                if (item.quantita <= 3) {
+                    status = '⚠️ Scorte Basse';
+                    className = 'low-stock';
+                } else if (item.quantita >= 10) {
+                    status = '✅ Buone Scorte';
+                    className = 'good-stock';
+                } else {
+                    status = '🔶 Normali';
+                }
+                
+                row.className = className;
+                
+                // Crea cella con logo per la marca
+                var marcaCell = document.createElement('td');
+                var brandContainer = document.createElement('div');
+                brandContainer.className = 'brand-name-with-logo';
+                
+                var logoImg = document.createElement('img');
+                logoImg.className = 'brand-logo';
+                logoImg.src = getBrandLogo(item.marca);
+                logoImg.alt = item.marca;
+                logoImg.onerror = function() {
+                    this.style.display = 'none';
+                };
+                
+                var brandText = document.createElement('span');
+                brandText.textContent = item.marca;
+                
+                brandContainer.appendChild(logoImg);
+                brandContainer.appendChild(brandText);
+                marcaCell.appendChild(brandContainer);
+                row.appendChild(marcaCell);
+                
+                // Altre celle
+                var cells = [
+                    item.stagione,
+                    item.tipo,
+                    item.quantita,
+                    status,
+                    (item.lastUpdate || '-') + '<br><small>👤 ' + (item.user || 'N/A') + '</small>'
+                ];
+                
+                cells.forEach(function(cellContent, index) {
+                    var cell = document.createElement('td');
+                    if (index === cells.length - 1) {
+                        cell.innerHTML = cellContent;
+                    } else {
+                        cell.textContent = cellContent;
+                    }
+                    row.appendChild(cell);
+                });
+                
+                tbody.appendChild(row);
+            }
+            
+            updateTireSelect();
+            updateStats();
+        }
+
+        function updateBrandSelect() {
+            var select = document.getElementById('addMarca');
+            select.innerHTML = '<option value="">Seleziona Marca</option>';
+            
+            for (var i = 0; i < brands.length; i++) {
+                var option = document.createElement('option');
+                option.value = brands[i];
+                option.textContent = brands[i];
+                select.appendChild(option);
+            }
+        }
+
+        function updateStats() {
+            var totalItems = inventory.length;
+            var totalQuantity = 0;
+            var lowStockItems = 0;
+            
+            for (var i = 0; i < inventory.length; i++) {
+                totalQuantity += inventory[i].quantita;
+                if (inventory[i].quantita <= 3) {
+                    lowStockItems++;
+                }
+            }
+            
+            document.getElementById('totalItems').textContent = totalItems;
+            document.getElementById('totalQuantity').textContent = totalQuantity;
+            document.getElementById('lowStockItems').textContent = lowStockItems;
+        }
+
+        function updateTireSelect() {
+            var select = document.getElementById('selectTire');
+            select.innerHTML = '<option value="">Seleziona</option>';
+            
+            for (var i = 0; i < inventory.length; i++) {
+                var item = inventory[i];
+                var option = document.createElement('option');
+                option.value = i;
+                option.textContent = item.marca + ' - ' + item.stagione + ' - ' + item.tipo + ' (' + item.quantita + ' pz)';
+                select.appendChild(option);
+            }
+        }
+
+        function filterTable() {
+            var searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            var rows = document.querySelectorAll('#inventoryTable tbody tr');
+            
+            for (var i = 0; i < rows.length; i++) {
+                var row = rows[i];
+                var text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchTerm) ? '' : 'none';
+            }
+        }
+
+        function showAlert(message, type) {
+            var container = document.getElementById('alertContainer');
+            var alert = document.createElement('div');
+            alert.className = 'alert alert-' + type;
+            alert.textContent = message;
+            
+            container.appendChild(alert);
+            
+            setTimeout(function() {
+                if (container.contains(alert)) {
+                    container.removeChild(alert);
+                }
+            }, 4000);
+        }
+
+        // Funzioni di export (migliorate con loghi)
+        function exportPDF() {
+            try {
+                var { jsPDF } = window.jspdf;
+                var doc = new jsPDF();
+                
+                // Header
+                doc.setFontSize(20);
+                doc.setTextColor(44, 62, 80);
+                doc.text('🚗 Inventario Pneumatici Cloud', 20, 25);
+                
+                doc.setFontSize(10);
+                doc.setTextColor(100, 100, 100);
+                doc.text('Generato il: ' + new Date().toLocaleString(), 20, 35);
+                doc.text('Utente: ' + currentUser, 20, 42);
+                doc.text('Stato: ' + (firebaseConnected ? 'Sincronizzato ☁️' : 'Offline'), 120, 42);
+                
+                // Statistiche
+                var totalItems = inventory.length;
+                var totalQuantity = 0;
+                var lowStockItems = 0;
+                
+                for (var i = 0; i < inventory.length; i++) {
+                    totalQuantity += inventory[i].quantita;
+                    if (inventory[i].quantita <= 3) {
+                        lowStockItems++;
+                    }
+                }
+                
+                doc.setFontSize(12);
+                doc.setTextColor(0, 0, 0);
+                doc.text('📊 Statistiche:', 20, 55);
+                doc.setFontSize(10);
+                doc.text('Articoli totali: ' + totalItems, 20, 65);
+                doc.text('Pezzi in magazzino: ' + totalQuantity, 70, 65);
+                doc.text('Scorte basse: ' + lowStockItems, 130, 65);
+                
+                // Marche disponibili
+                doc.setFontSize(10);
+                doc.text('Marche: ' + brands.join(', '), 20, 75);
+                
+                // Tabella
+                var y = 90;
+                var pageHeight = doc.internal.pageSize.height;
+                
+                // Header tabella
+                doc.setFillColor(52, 152, 219);
+                doc.rect(20, y, 170, 8, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(9);
+                doc.text('Marca', 22, y + 6);
+                doc.text('Stagione', 55, y + 6);
+                doc.text('Tipo/Dimensioni', 85, y + 6);
+                doc.text('Q.ta', 142, y + 6);
+                doc.text('Stato', 157, y + 6);
+                
+                y += 10;
+                doc.setTextColor(0, 0, 0);
+                
+                for (var i = 0; i < inventory.length; i++) {
+                    var item = inventory[i];
+                    
+                    if (y > pageHeight - 20) {
+                        doc.addPage();
+                        y = 20;
+                    }
+                    
+                    var status = item.quantita <= 3 ? 'Basse' : item.quantita >= 10 ? 'Buone' : 'Normali';
+                    
+                    // Colore riga in base allo stock
+                    if (item.quantita <= 3) {
+                        doc.setFillColor(255, 235, 238);
+                        doc.rect(20, y - 2, 170, 8, 'F');
+                    } else if (item.quantita >= 10) {
+                        doc.setFillColor(232, 245, 232);
+                        doc.rect(20, y - 2, 170, 8, 'F');
+                    }
+                    
+                    doc.text(item.marca.substring(0, 20), 22, y + 4);
+                    doc.text((item.stagione || '-').substring(0, 15), 55, y + 4);
+                    doc.text(item.tipo.substring(0, 25), 85, y + 4);
+                    doc.text(item.quantita.toString(), 142, y + 4);
+                    doc.text(status, 157, y + 4);
+                    
+                    y += 8;
+                }
+                
+                // Footer
+                var pageCount = doc.internal.getNumberOfPages();
+                for (var i = 1; i <= pageCount; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(8);
+                    doc.setTextColor(100, 100, 100);
+                    doc.text('Pagina ' + i + ' di ' + pageCount + ' - Gestionale Pneumatici Cloud', 20, pageHeight - 10);
+                }
+                
+                doc.save('inventario_pneumatici_cloud_' + new Date().toISOString().split('T')[0] + '.pdf');
+                showAlert('📄 PDF generato con successo!', 'success');
+            } catch (error) {
+                showAlert('❌ Errore nella generazione del PDF: ' + error.message, 'error');
+            }
+        }
+
+        function exportData() {
+            var data = {
+                inventory: inventory,
+                brands: brands,
+                currentUser: currentUser,
+                exportDate: new Date().toISOString(),
+                firebaseConnected: firebaseConnected,
+                version: '2.0-Firebase-WithLogos-GoogleSheets'
+            };
+            
+            var dataStr = JSON.stringify(data, null, 2);
+            var dataBlob = new Blob([dataStr], {type: 'application/json'});
+            var url = URL.createObjectURL(dataBlob);
+            var link = document.createElement('a');
+            link.href = url;
+            link.download = 'pneumatici_cloud_backup_' + new Date().toISOString().split('T')[0] + '.json';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            showAlert('💾 Database esportato!', 'success');
+        }
+
+        function exportExcel() {
+            var csv = 'Marca,Stagione,Tipo,Quantita,Stato,Ultimo_Aggiornamento,Utente\n';
+            
+            for (var i = 0; i < inventory.length; i++) {
+                var item = inventory[i];
+                var status = item.quantita <= 3 ? 'Basse' : item.quantita >= 10 ? 'Buone' : 'Normali';
+                csv += '"' + item.marca + '","' + item.stagione + '","' + item.tipo + '",' + item.quantita + ',"' + status + '","' + (item.lastUpdate || '') + '","' + (item.user || '') + '"\n';
+            }
+            
+            var csvBlob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+            var url = URL.createObjectURL(csvBlob);
+            var link = document.createElement('a');
+            link.href = url;
+            link.download = 'inventario_cloud_' + new Date().toISOString().split('T')[0] + '.csv';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            showAlert('📊 CSV esportato!', 'success');
+        }
+
+        async function importFile() {
+            var fileInput = document.getElementById('fileInput');
+            fileInput.onchange = async function(e) {
+                var file = e.target.files[0];
+                if (!file) return;
+                
+                var reader = new FileReader();
+                reader.onload = async function(event) {
+                    try {
+                        var data = JSON.parse(event.target.result);
+                        if (data.inventory && data.brands) {
+                            if (confirm('🔄 Vuoi sovrascrivere i dati attuali? Questa operazione sincronizzerà anche Firebase.')) {
+                                inventory = data.inventory;
+                                brands = data.brands;
+                                if (data.currentUser) {
+                                    currentUser = data.currentUser;
+                                    document.getElementById('currentUser').textContent = currentUser;
+                                }
+                                
+                                updateBrandSelect();
+                                updateBrandLogosGrid();
+                                updateTable();
+                                
+                                try {
+                                    await syncToFirebase();
+                                    await syncBrandsToFirebase();
+                                    showAlert('✅ Dati importati e sincronizzati!', 'success');
+                                } catch (error) {
+                                    showAlert('⚠️ Dati importati localmente - errore sincronizzazione', 'error');
+                                }
+                            }
+                        } else {
+                            showAlert('❌ Formato file non valido!', 'error');
+                        }
+                    } catch (error) {
+                        showAlert('❌ Errore nel leggere il file!', 'error');
+                    }
+                };
+                reader.readAsText(file);
+                fileInput.value = '';
+            };
+            fileInput.click();
+        }
+
+        // Gestione eventi di rete
+        window.addEventListener('online', function() {
+            showAlert('🌐 Connessione ripristinata - riconnessione a Firebase...', 'info');
+            setTimeout(() => {
+                if (window.firebaseDB) {
+                    setupFirebaseListeners();
+                }
+            }, 1000);
+        });
+
+        window.addEventListener('offline', function() {
+            updateFirebaseStatus(false, '📵 Offline');
+            showAlert('📵 Modalità offline - le modifiche saranno sincronizzate alla riconnessione', 'error');
+        });
+
+        // Avvia l'applicazione
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 DOM caricato - in attesa di Firebase...');
+            
+            // Carica configurazione Google Sheets salvata
+            const savedApiKey = localStorage.getItem('googleApiKey');
+            const savedSheetId = localStorage.getItem('googleSheetId');
+            
+            if (savedApiKey) {
+                googleApiKey = savedApiKey;
+                document.getElementById('googleApiKey').value = savedApiKey;
+                document.getElementById('connectSheetsBtn').disabled = false;
+            }
+            
+            if (savedSheetId) {
+                googleSheetId = savedSheetId;
+                document.getElementById('googleSheetId').value = savedSheetId;
+            }
+            
+            // Inizializza subito la griglia dei loghi con i dati di default
+            updateBrandLogosGrid();
+            
+            // Timeout di sicurezza per l'inizializzazione
+            setTimeout(() => {
+                if (!firebaseConnected) {
+                    console.log('⏰ Timeout Firebase - avvio modalità offline');
+                    initFallback();
+                }
+            }, 10000); // 10 secondi di timeout
+        });
+        
+        // Cleanup listeners quando si chiude la pagina
+        window.addEventListener('beforeunload', function() {
+            if (inventoryListener && window.firebaseDB) {
+                const { off } = window.firebaseDB;
+                off(inventoryListener);
+                off(brandsListener);
+            }
+            
+            if (sheetsUpdateListener) {
+                clearInterval(sheetsUpdateListener);
+            }
+        });
+        
+        // Inizializzazione immediata (fallback se Firebase non è pronto)
+        function initFallback() {
+            console.log('🔄 Inizializzazione fallback...');
+            inventory = defaultInventory;
+            updateBrandSelect();
+            updateBrandLogosGrid();
+            updateTable();
+            updateFirebaseStatus(false, '⚠️ Firebase non disponibile');
+            updateSyncButtons(false);
+            showAlert('⚠️ Modalità offline - Firebase non disponibile', 'error');
+        }
+    </script>
+</body>
+</html>
